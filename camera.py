@@ -64,9 +64,9 @@ with open(PATH_TO_CONFIG, 'r') as stream:
 
 #Required config
 try:
-    # Each of the following varibles, is now configured within [camera-config.yaml]:
     CAMERA_BUTTON_PIN = CONFIG['CAMERA_BUTTON_PIN']
     EXIT_BUTTON_PIN = CONFIG['EXIT_BUTTON_PIN']
+    FLASH_PIN = CONFIG['FLASH_PIN']
     TOTAL_PICS = CONFIG['TOTAL_PICS']
     PREP_DELAY = CONFIG['PREP_DELAY']
     COUNTDOWN = CONFIG['COUNTDOWN']
@@ -78,7 +78,9 @@ try:
     CAMERA_HFLIP = CONFIG['CAMERA_HFLIP']
     DEBOUNCE_TIME = CONFIG['DEBOUNCE_TIME']
     TESTMODE_AUTOPRESS_BUTTON = CONFIG['TESTMODE_AUTOPRESS_BUTTON']
+    TESTMODE_FAST = CONFIG['TESTMODE_FAST']
     SAVE_RAW_IMAGES_FOLDER = CONFIG['SAVE_RAW_IMAGES_FOLDER']
+    PRINTER_MODE = CONFIG["PRINTER_MODE"]
 
 except KeyError as exc:
     print('')
@@ -88,6 +90,12 @@ except KeyError as exc:
     print(' - Please refer to the example file [' + PATH_TO_CONFIG_EXAMPLE + '], for reference.')
     print('')
     sys.exit()
+
+#TESTMODE config
+if TESTMODE_FAST:
+    TOTAL_PICS = 2
+    PREP_DELAY = 2
+    COUNTDOWN = 3
 
 #Optional config
 COPY_IMAGES_TO = []
@@ -107,10 +115,12 @@ except KeyError as exc:
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(CAMERA_BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(EXIT_BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(FLASH_PIN , GPIO.OUT)
 
+#Setup Camera
 CAMERA = picamera.PiCamera()
 CAMERA.rotation = CAMERA_ROTATION
-CAMERA.annotate_text_size = 80
+CAMERA.annotate_text_size = 160
 CAMERA.resolution = (PHOTO_W, PHOTO_H)
 CAMERA.hflip = CAMERA_HFLIP
 
@@ -159,6 +169,12 @@ def get_base_filename_for_images():
     base_filepath = REAL_PATH + '/' + SAVE_RAW_IMAGES_FOLDER + '/' + base_filename
 
     return base_filepath
+
+def flash():
+    print("flashing")
+    GPIO.output(FLASH_PIN, GPIO.HIGH)
+    sleep(0.1)
+    GPIO.output(FLASH_PIN, GPIO.LOW)
 
 def remove_overlay(overlay_id):
     """
@@ -243,12 +259,14 @@ def taking_photo(photo_number, filename_prefix):
 
     #countdown from 3, and display countdown on screen
     for counter in range(COUNTDOWN, 0, -1):
-        print_overlay("             ..." + str(counter))
+        #print_overlay("             ..." + str(counter))
+        print_overlay(str(counter))
         sleep(1)
 
     #Take still
     CAMERA.annotate_text = ''
     CAMERA.capture(filename)
+    flash()
     print('Photo (' + str(photo_number) + ') saved: ' + filename)
     return filename
 
@@ -260,25 +278,69 @@ def playback_screen(filename_prefix):
     #Processing
     print('Processing...')
     processing_image = REAL_PATH + '/assets/processing.png'
-    overlay_image(processing_image, 2)
+    prev_overlay = overlay_image(processing_image, False, (3 + TOTAL_PICS + 1))
 
     #Playback
-    prev_overlay = False
+    #prev_overlay_num = False ## to fix: MEM problem due to transparency overlay num
     for photo_number in range(1, TOTAL_PICS + 1):
-        filename = filename_prefix + '_' + str(photo_number) + 'of'+ str(TOTAL_PICS)+'.jpg'
-        this_overlay = overlay_image(filename, False, (3 + TOTAL_PICS))
+        filename = filename_prefix + '_' + str(photo_number) + 'of' + str(TOTAL_PICS) + '.jpg'
+        ##filename2 = REAL_PATH + '/assets/photo_num_' + str(photo_number) + ".png"
+        this_overlay = overlay_image(filename, False, (3 + TOTAL_PICS + 1))
+        ##this_overlay_num = overlay_image(filename2, False, (3 + TOTAL_PICS + 1), 'RGB')
         # The idea here, is only remove the previous overlay after a new overlay is added.
-        if prev_overlay:
-            remove_overlay(prev_overlay)
+        remove_overlay(prev_overlay)
+        ##if prev_overlay_num:
+        ##	remove_overlay(prev_overlay_num)
         sleep(2)
         prev_overlay = this_overlay
+        ##prev_overlay_num = this_overlay_num
 
     remove_overlay(prev_overlay)
 
     #All done
     print('All done!')
-    finished_image = REAL_PATH + '/assets/all_done_delayed_upload.png'
+    finished_image = REAL_PATH + '/assets/all_done.png'
     overlay_image(finished_image, 5)
+
+def combine_images(filename_prefix):
+    print("Processing images into combined strip")
+
+    processing_image = REAL_PATH + "/assets/processing2.png"
+    printing_overlay = overlay_image(processing_image)
+
+    # Do the merging
+    blankImage = Image.open(REAL_PATH + "/assets/blank.jpg")
+
+    image1 = Image.open(filename_prefix + '_1of4.jpg')
+    image1 = image1.resize((732,439))
+    blankImage.paste(image1, (20,20))
+
+    image2 = Image.open(filename_prefix + '_2of4.jpg')
+    image2 = image2.resize((732,439))
+    blankImage.paste(image2, (20,479))
+
+    image3 = Image.open(filename_prefix + '_3of4.jpg')
+    image3 = image3.resize((732,439))
+    blankImage.paste(image3, (20,938))
+
+    image4 = Image.open(filename_prefix + '_4of4.jpg')
+    image4 = image4.resize((732,439))
+    blankImage.paste(image4, (20,1397))
+
+    blankImage.save(filename_prefix + '_combined.jpg', 'JPEG', quality=100)
+    
+    combinedImage = (filename_prefix + '_combined.jpg')
+
+    print("Creating binary file for printer")
+    os.system('brother_ql_create --dither --model QL-570 ' + combinedImage + ' > /tmp/' + combinedImage + '.bin')
+
+    print("Sending file to printer")
+    os.system('cat /tmp/' + combinedImage + '.bin > /dev/usb/lp0')
+
+    print("Deleting binary file")
+    os.system('rm -f /tmp/' + combinedImage + '.bin')
+
+    remove_overlay(printing_overlay)
 
 def main():
     """
@@ -286,7 +348,7 @@ def main():
     """
 
     #Start Program
-    print('Welcome to the photo booth!')
+    print('Welcome to the Photobooth!')
     print('(version ' + __version__ + ')')
     print('')
     print('Press the \'Take photo\' button to take a photo')
@@ -296,14 +358,14 @@ def main():
     #Setup any required folders (if missing)
     health_test_required_folders()
 
-    #Start camera preview
-    CAMERA.start_preview(resolution=(SCREEN_W, SCREEN_H))
-
     #Display intro screen
     intro_image_1 = REAL_PATH + '/assets/intro_1.png'
     intro_image_2 = REAL_PATH + '/assets/intro_2.png'
     overlay_1 = overlay_image(intro_image_1, 0, 3)
     overlay_2 = overlay_image(intro_image_2, 0, 4)
+
+    #Start camera preview
+    CAMERA.start_preview(resolution=(SCREEN_W, SCREEN_H))
 
     #Wait for someone to push the button
     i = 0
@@ -343,6 +405,8 @@ def main():
             elif i == (2 * blink_speed):
                 overlay_2.alpha = 0
                 i = 0
+#                if random.randint(1,101) > 80:
+#                flash()
 
             #Regardless, restart loop
             sleep(0.1)
@@ -365,6 +429,10 @@ def main():
             prep_for_photo_screen(photo_number)
             fname = taking_photo(photo_number, filename_prefix)
             photo_filenames.append(fname)
+
+        #combine images into photo strip and print it
+        if PRINTER_MODE:
+			combine_images(filename_prefix)
 
         #thanks for playing
         playback_screen(filename_prefix)
@@ -391,7 +459,12 @@ if __name__ == "__main__":
         main()
 
     except KeyboardInterrupt:
+        print('')
         print('Goodbye')
+        print('')
+
+    except Exception as exception:
+        print("unexpected error: ", str(exception))
 
     finally:
         CAMERA.stop_preview()

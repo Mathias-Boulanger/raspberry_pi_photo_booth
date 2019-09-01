@@ -1,6 +1,7 @@
 #Photo Booth Config:
 "CAMERA_BUTTON_PIN" : 21 # GPIO pin that is connected to 'take photo' button
 "EXIT_BUTTON_PIN"   : 13 # GPIO pin that is connected to 'exit' button (optional)
+"FLASH_PIN"         : 16 # GPIO pin that is connected to the light relay
 "TOTAL_PICS"        : 4  # Number of pics to be taken
 "PREP_DELAY"        : 4  # Number of seconds as users prepare to have photo taken, before countdown commences
 "COUNTDOWN"         : 3  # Number of seconds to count down from
@@ -25,6 +26,9 @@
 "CAMERA_ROTATION"   : 270 # Rotation of the camera
 "CAMERA_HFLIP"      : True # When preparing for photos, the preview will be flipped horizontally.
 
+# Printer service
+"PRINTER_MODE"      : FALSE # Service which merge 4 photos on a specific design and send to printer
+
 # Primary folder to save images to (required):
 "SAVE_RAW_IMAGES_FOLDER" : "photos"
 
@@ -33,3 +37,4 @@
 
 # Test purposes only:
 "TESTMODE_AUTOPRESS_BUTTON" : False # Should the button be automatically pressed? (only used for testing)
+"TESTMODE_FAST"             : FALSE # Reduced wait between photos and 2 photos only
