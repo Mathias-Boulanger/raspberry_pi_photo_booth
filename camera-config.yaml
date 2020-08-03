@@ -27,7 +27,7 @@
 "CAMERA_HFLIP"      : True # When preparing for photos, the preview will be flipped horizontally.
 
 #Flash mode
-"FLASH_MODE"        : True
+"FLASH_MODE"        : FALSE
 
 # Printer service
 "PRINTER_MODE"      : FALSE # Service which merge 4 photos on a specific design and send to printer
@@ -39,5 +39,5 @@
 "COPY_IMAGES_TO" : "/Photobox"
 
 # Test purposes only:
-"TESTMODE_AUTOPRESS_BUTTON" : True # Should the button be automatically pressed? (only used for testing)
-"TESTMODE_FAST"             : True # Reduced wait between photos and 2 photos only
+"TESTMODE_AUTOPRESS_BUTTON" : FALSE # Should the button be automatically pressed? (only used for testing)
+"TESTMODE_FAST"             : FALSE # Reduced wait between photos and 2 photos only
