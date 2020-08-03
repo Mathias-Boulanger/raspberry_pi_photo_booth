@@ -8,8 +8,8 @@ Currently both Python 2 and Python 3 are supported.
 You can modify the config via [camera-config.yaml].
 (The 1st time the code is run [camera-config.yaml] will be created based on [camera-config.example.yaml].
 """
-__author__ = 'Jibbius (Jack Barker)'
-__version__ = '2.2'
+__author__ = 'Jibbius (Jack Barker) - modified by Mathias Boulanger'
+__version__ = '2.3'
 
 
 #Standard imports
@@ -81,6 +81,7 @@ try:
     TESTMODE_FAST = CONFIG['TESTMODE_FAST']
     SAVE_RAW_IMAGES_FOLDER = CONFIG['SAVE_RAW_IMAGES_FOLDER']
     PRINTER_MODE = CONFIG["PRINTER_MODE"]
+    FLASH_MODE = CONFIG["FLASH_MODE"]
 
 except KeyError as exc:
     print('')
@@ -169,12 +170,6 @@ def get_base_filename_for_images():
     base_filepath = REAL_PATH + '/' + SAVE_RAW_IMAGES_FOLDER + '/' + base_filename
 
     return base_filepath
-
-def flash():
-    print("flashing")
-    GPIO.output(FLASH_PIN, GPIO.HIGH)
-    sleep(0.1)
-    GPIO.output(FLASH_PIN, GPIO.LOW)
 
 def remove_overlay(overlay_id):
     """
@@ -265,8 +260,14 @@ def taking_photo(photo_number, filename_prefix):
 
     #Take still
     CAMERA.annotate_text = ''
-    CAMERA.capture(filename)
-    flash()
+
+    if FLASH_MODE:
+        GPIO.output(FLASH_PIN, GPIO.HIGH)
+        CAMERA.capture(filename)
+        GPIO.output(FLASH_PIN, GPIO.LOW)
+    else:
+        CAMERA.capture(filename)
+    
     print('Photo (' + str(photo_number) + ') saved: ' + filename)
     return filename
 
@@ -279,21 +280,26 @@ def playback_screen(filename_prefix):
     print('Processing...')
     processing_image = REAL_PATH + '/assets/processing.png'
     prev_overlay = overlay_image(processing_image, False, (3 + TOTAL_PICS + 1))
+    sleep(2)
 
     #Playback
-    #prev_overlay_num = False ## to fix: MEM problem due to transparency overlay num
     for photo_number in range(1, TOTAL_PICS + 1):
         filename = filename_prefix + '_' + str(photo_number) + 'of' + str(TOTAL_PICS) + '.jpg'
-        ##filename2 = REAL_PATH + '/assets/photo_num_' + str(photo_number) + ".png"
+        
+        #code to overlay number on pictures (too slow need to be improved...)
+        #filename2 = REAL_PATH + '/assets/photo_num_' + str(photo_number) + '.png'
+        #overlay_filename = '/tmp/playback_' + str(photo_number) + '.png'
+
+        #the size of the 2 pictures needs to be the same... 
+        #background = Image.open(filename).convert('RGBA').resize((1280,1024), Image.ANTIALIAS)
+        #foreground = Image.open(filename2 ).convert('RGBA')
+        #Image.alpha_composite(background, foreground).save(overlay_filename)
+
         this_overlay = overlay_image(filename, False, (3 + TOTAL_PICS + 1))
-        ##this_overlay_num = overlay_image(filename2, False, (3 + TOTAL_PICS + 1), 'RGB')
-        # The idea here, is only remove the previous overlay after a new overlay is added.
+
         remove_overlay(prev_overlay)
-        ##if prev_overlay_num:
-        ##	remove_overlay(prev_overlay_num)
         sleep(2)
         prev_overlay = this_overlay
-        ##prev_overlay_num = this_overlay_num
 
     remove_overlay(prev_overlay)
 
@@ -405,8 +411,8 @@ def main():
             elif i == (2 * blink_speed):
                 overlay_2.alpha = 0
                 i = 0
-#                if random.randint(1,101) > 80:
-#                flash()
+                #if random.randint(1,101) > 80:
+                #flash()
 
             #Regardless, restart loop
             sleep(0.1)
