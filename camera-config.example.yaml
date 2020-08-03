@@ -26,6 +26,9 @@
 "CAMERA_ROTATION"   : 270 # Rotation of the camera
 "CAMERA_HFLIP"      : True # When preparing for photos, the preview will be flipped horizontally.
 
+#Flash mode
+"FLASH_MODE"        : FALSE
+
 # Printer service
 "PRINTER_MODE"      : FALSE # Service which merge 4 photos on a specific design and send to printer
 
